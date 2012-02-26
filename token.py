@@ -1,5 +1,4 @@
-import nltk
-import random
+import random, math, nltk
 
 filename = "../Proj1Data/test.txt"
 
@@ -56,5 +55,8 @@ class Bigram():
 
 	def generate_table(self):
 		pass
-		
-		
+	
+def perplexity(ngrams):
+	product = reduce (lambda acc, ngram: acc + math.log( ngrams[ngram] ), ngrams.iterkeys(), 0.0)
+	return math.pow(product, - math.e / len(ngrams) )
+	
