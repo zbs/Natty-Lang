@@ -12,7 +12,7 @@ filename = "../Proj1Data/test.txt"
 """
 def add_sentence_markers(tokens):
 		#Need to double-check
-		tokens_with_punct = []
+		tokens_with_punct = ["."]
 		for word in tokens:
 			if len(word) > 1 and \
 				(word[-1:] == "!"  or word[-1:] == "?" or word[-1:] == "."):
@@ -22,38 +22,40 @@ def add_sentence_markers(tokens):
 				tokens_with_punct.append(word)
 		# Treat beginning and end of text as a beginning or end of sentence,
 		# respectively
-		#if tokens_with_punct[:-1] != ".":
-		#	tokens_with_punct.append(".")
+		end_token = tokens_with_punct[-1:][0]
+		if end_token != "." and end_token != "!" and end_token != "?":
+			tokens_with_punct.append(".")
 		return tokens_with_punct
 	
 class Unigram():
-	def __init__(self, filename):
+	def __init__(self, filename=None, text_string=None):
 		#Reads in text of specified file
-		with open(filename) as fp:
-			self.file_text = fp.read()
+		if filename != None:
+			with open(filename) as fp:
+				self.text = fp.read()
+		else:
+			if text_string == None:
+				print "Error: Need either filename or string"
+				return 
+			else:
+				self.text = text_string
 		# self.tokens = add_sentence_markers()
-		self.tokens = nltk.wordpunct_tokenize(self.file_text)
+		self.tokens = nltk.wordpunct_tokenize(self.text)
 		self.num_words = float(len(self.tokens))
 		
 		self.frequencies = None
 		self.unigrams = None
 		
-	def generate_probabilities(self):
-		
-		self.unigrams = dict()
-		for word in self.frequencies:
-			self.unigrams[(word,)] = self.frequencies[word] / self.num_words
-	
 	def get_frequencies(self):
 		if self.frequencies != None:
 			return self.frequencies
 		else:
 			self.frequencies = dict()
-		for word in self.tokens:
-			if word in self.frequencies:
-				self.frequencies[word] += 1.
-			else:
-				self.frequencies[word] = 1.
+			for word in self.tokens:
+				if word in self.frequencies:
+					self.frequencies[word] += 1.
+				else:
+					self.frequencies[word] = 1.
 			return self.frequencies
 	
 	def get_probabilities(self):
@@ -64,6 +66,7 @@ class Unigram():
 			self.unigrams = dict()
 			for word in frequencies:
 				self.unigrams[(word,)] = frequencies[word] / self.num_words
+			return self.unigrams
 			
 	def next_word(self):
 		# Need to implement this using new structure
@@ -83,10 +86,18 @@ class Unigram():
 	"""
 	
 class Bigram():
-	def __init__(self, filename):
-		with open(filename) as fp:
-			self.file_text = fp.read()
-		self.tokens = add_sentence_markers(nltk.wordpunct_tokenize(self.file_text))
+	def __init__(self, filename=None, text_string=None):
+		if filename != None:
+			with open(filename) as fp:
+				self.text = fp.read()
+		else:
+			if text_string == None:
+				print "Error: Need either filename or string"
+				return 
+			else:
+				self.text = text_string
+				
+		self.tokens = add_sentence_markers(nltk.wordpunct_tokenize(self.text))
 		self.num_words = float(len(self.tokens))
 		
 		self.uni_frequencies = None
@@ -97,6 +108,7 @@ class Bigram():
 		if self.uni_frequencies == None or self.bi_frequencies == None:
 			# Still need to figure out beginning-of-sentence markers
 			l = len(self.tokens)
+			end_punct = self.tokens[-1:][0]
 			self.uni_frequencies = dict()
 			self.bi_frequencies = dict()
 			# Disregard final period
@@ -115,10 +127,10 @@ class Bigram():
 					self.uni_frequencies[unigram_token] += 1.
 				else:
 					self.uni_frequencies[unigram_token] = 1.
-		
+			self.uni_frequencies[(end_punct,)] -= 1
 		return (self.uni_frequencies, self.bi_frequencies)
 		
-	def generate_probabilities(self):
+	def get_probabilities(self):
 		if self.bigrams != None:
 			return self.bigrams
 		else:
@@ -128,7 +140,4 @@ class Bigram():
 			for (first, second) in bi_frequencies:
 				self.bigrams[(first, second)] = \
 					bi_frequencies[(first,second)] / uni_frequencies[(first,)]
-
-u = Bigram("test_text")
-u.generate_probabilities()
-print u.bigrams
+			return self.bigrams
