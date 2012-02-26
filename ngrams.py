@@ -101,8 +101,8 @@ class Bigram():
 			self.bi_frequencies = dict()
 			# Disregard final period
 			for i in range(l):
-				if(i == l-1):
-					unigram_token = (self.tokens[i],)
+				unigram_token = (self.tokens[i],)
+				if(i != l-1):
 					#bigram frequencies
 					bigram_token = (self.tokens[i], self.tokens[i+1])
 					if bigram_token in self.bi_frequencies:
