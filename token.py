@@ -56,7 +56,7 @@ class Bigram():
 	def generate_table(self):
 		pass
 	
-#compute ngram perplexity given dictionary of ngram probabilities.
+#compute ngram perplexity given dictionary of n-gram probabilities.
 def perplexity(ngrams):
 	product = reduce (lambda acc, ngram: acc + math.log( ngrams[ngram] ), ngrams.iterkeys(), 0.0)
 	return math.pow(product, - math.e / len(ngrams) )
