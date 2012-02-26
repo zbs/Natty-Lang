@@ -46,6 +46,13 @@ class Unigram():
 		self.frequencies = None
 		self.unigrams = None
 		
+	def get_num_tokens(self):
+		return self.tokens
+	
+	def has_tokens(self, gram):
+		freqs = self.get_frequencies()
+		return gram in freqs
+	
 	def get_frequencies(self):
 		if self.frequencies != None:
 			return self.frequencies
@@ -85,6 +92,12 @@ class Unigram():
 			sentence += self.next_word(self)
 	"""
 	
+	def get_probability(self, unigram):
+		probs = self.get_probabilities()
+		if unigram not in probs:
+			return 0
+		return probs[unigram] 
+		
 class Bigram():
 	def __init__(self, filename=None, text_string=None):
 		if filename != None:
@@ -103,6 +116,14 @@ class Bigram():
 		self.uni_frequencies = None
 		self.bi_frequencies = None
 		self.bigrams = None
+		
+	def get_num_tokens(self):
+		return len(self.tokens)
+	
+	def has_tokens(self, gram):
+		(first, second) = gram
+		(uni_freqs, bi_freqs) = self.get_frequencies()
+		return first in uni_freqs and second in uni_freqs
 		
 	def get_frequencies(self):
 		if self.uni_frequencies == None or self.bi_frequencies == None:
@@ -127,17 +148,46 @@ class Bigram():
 					self.uni_frequencies[unigram_token] += 1.
 				else:
 					self.uni_frequencies[unigram_token] = 1.
-			self.uni_frequencies[(end_punct,)] -= 1
+			self.uni_frequencies[(end_punct,)] -= 1.
 		return (self.uni_frequencies, self.bi_frequencies)
 		
 	def get_probabilities(self):
 		if self.bigrams != None:
 			return self.bigrams
 		else:
-			if self.uni_frequencies == None or self.bi_frequencies == None:
-				(uni_frequencies, bi_frequencies) = self.get_frequencies()
+			(uni_frequencies, bi_frequencies) = self.get_frequencies()
 			self.bigrams = dict()
 			for (first, second) in bi_frequencies:
 				self.bigrams[(first, second)] = \
 					bi_frequencies[(first,second)] / uni_frequencies[(first,)]
 			return self.bigrams
+
+	def smooth(self):
+		(uni_freqs, bi_freqs) = self.get_frequencies()
+		for key in bi_freqs:
+			bi_freqs[key] += 1.
+		for key in uni_freqs:
+			uni_freqs[key] += len(uni_freqs)
+		self.bigrams = None
+		self.get_probabilities()
+		
+	def get_probability(self, bigram, smoothed=False):
+		(first, second) = bigram
+		(uni_freqs, bi_freqs) = self.get_frequencies()
+		probs = self.get_probabilities()
+		if bigram not in bi_freqs and not smoothed:
+			return 0.
+		elif smoothed:
+			# Deal with unknowns here
+			if first not in uni_freqs or second not in uni_freqs:
+				return 0.
+			else: 
+				return 1./uni_freqs[(first,)]
+		return probs[bigram]
+"""
+b = Bigram("test_text")
+b.smooth()
+print b.bigrams
+print b.get_probability(("twice","twice"), True)
+print b.get_probability((".","once"),True)
+"""
