@@ -37,7 +37,9 @@ class Unigram():
 		
 		self.frequencies = None
 		self.unigrams = None
-		
+	
+
+			
 	def generate_probabilities(self):
 		
 		self.unigrams = dict()
@@ -64,6 +66,9 @@ class Unigram():
 			self.unigrams = dict()
 			for word in frequencies:
 				self.unigrams[(word,)] = frequencies[word] / self.num_words
+	
+	def get_num_tokens(self):
+		return len(self.tokens)
 			
 	def next_word(self):
 		# Need to implement this using new structure
@@ -117,6 +122,9 @@ class Bigram():
 					self.uni_frequencies[unigram_token] = 1.
 		
 		return (self.uni_frequencies, self.bi_frequencies)
+	
+	def get_num_tokens(self):
+		return len(self.tokens)
 		
 	def generate_probabilities(self):
 		if self.bigrams != None:

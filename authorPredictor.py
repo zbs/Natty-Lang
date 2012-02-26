@@ -3,18 +3,32 @@ Created on Feb 26, 2012
 
 @author: Benjamin
 '''
-import math, ngrams
+from ngrams import *
 
-def perplexity(ngrams_text, ngrams_model):
-    product = reduce (lambda acc, ngram: acc + ngrams_text[ngram] * math.log( ngrams_model[ngram] ), ngrams_text.iterkeys(), 0.0)
-    return math.pow(product, - math.e / len(ngrams) )
+def perplexity(text, model):
+    text_freq = text.get_frequencies()
+    model_prob = model.get_probabilities()
+    model_prob.smooth()
     
+    def log_probability(acc, ngram):
+        prob = 0
+        if ngram in model_prob:
+            prob = math.log( model_prob[ngram])
+        elif model.has_tokens(ngram):
+            prob = math.log( model_prob["<zero_freq>"])
+        return acc + text_freq[ngram] * prob
+    
+    product = reduce (log_probability, text_freq, 0.0)
+    return math.pow(product, - math.e / text.get_num_tokens() )
+   #is_ngram()
+   #get_zero_freq_prob()
+   #smooth() 
     
 #See textbook page 122
 def email_prediction(filename):
         train_data = []
         with open(filename) as fp:
-                train_data = file.readlines()
+                train_data = fp.readlines()
         #concatenate emails from same author
         author_texts = {}
         for line in train_data:
@@ -34,7 +48,7 @@ def email_prediction(filename):
         #read in validation or train emails
         validate_data = []
         with open(filename) as fp:
-                validate_data = file.readlines()
+                validate_data = fp.readlines()
 
         predicted_author = []
         for line in validate_data:
