@@ -1,6 +1,4 @@
-import nltk
-import math
-import random
+import nltk, math, random
 
 filename = "../Proj1Data/test.txt"
 
@@ -93,12 +91,4 @@ class Bigram():
 		for (first, second) in bi_frequencies:
 			self.bigrams[(first, second)] = \
 				bi_frequencies[(first,second)] / uni_frequencies[(first,)]
-
-# OUTSTANDING ISSUE: You're supposed to compute the probability of an entire file,
-# as opposed to just iterating over all the probabilities.
-#compute ngram perplexity given dictionary of n-gram probabilities.
-def perplexity(ngrams):
-	product = reduce (lambda acc, ngram: acc + math.log( ngrams[ngram] ), ngrams.iterkeys(), 0.0)
-	return math.pow(product, - math.e / len(ngrams) )
-	
 		
