@@ -192,10 +192,51 @@ class Bigram():
 		self.get_probabilities()
 		self.smoothed = True
 	
-	#Smooth with Good-Turing	
-	def gt_smooth(self):
-		pass
 	
+    def guess_freq(self, freq_dict,f,max):
+        #we know freq_dict[f-1] exists by the order of filling freq_dict
+        left = (f-1,freq_dict[f-1])
+        while f <= max:
+            f += 1
+            if f in freq_dict:
+                right = (f,freq_dict[f])
+        return left[1] + (right[1] - left[1])/(right[0]-left[0])
+            
+                
+    def good_turing_smooth(self):
+        (uni_freqs, bi_freqs) = self.get_frequencies()
+        freq_dict = dict()
+        max = 0
+        #initialize freq_vector with known bigrams
+        for bigram in bi_freqs:
+            f = bi_freqs[bigram]
+            if f > max:
+                max = f
+            if f in freq_dict:
+                freq_dict[f] += 1.
+            else:
+                freq_dict[f] = 1.
+        #count total number of bigrams observed
+        N = len(self.tokens)
+        print N
+        #set all unfound freq = highest neighbor
+        for f in range(1,int(max)):
+            if f not in freq_dict:
+                freq_dict[f] = self.guess_freq(freq_dict,f,max) 
+        freq_dict[max+1] = freq_dict[max]
+		
+        adj_prob = dict()
+        adj_prob[0] = freq_dict[1]/N
+        print freq_dict
+		
+        for f in range(1,len(freq_dict)):
+            adj_prob[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])/N
+        print adj_prob
+		
+        summ = 0.
+        for p in range(1,len(adj_prob)):
+            print (adj_prob[p],N,freq_dict[p])
+        
 	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
