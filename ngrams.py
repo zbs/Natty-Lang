@@ -2,26 +2,42 @@ import nltk, math, random
 
 filename = "../Proj1Data/test.txt"
 
+"""
+	Perform unigram smoothing
+"""
+
 def is_punct(char):
 	return char == "!" or char == "?" or char == "."
 
+def split_punct(tokens, tokens_with_punct=[]):
+	for word in tokens:
+		if len(word) > 1 and \
+			(word[-1:] == "!"  or word[-1:] == "?" or word[-1:] == "."):
+			tokens_with_punct.append(word[:-1])
+			tokens_with_punct.append(word[-1:])
+		else:
+			tokens_with_punct.append(word)
+	return tokens_with_punct
+
 def add_sentence_markers(tokens):
-		#Need to double-check
-		tokens_with_punct = ["."]
-		for word in tokens:
-			if len(word) > 1 and \
-				(word[-1:] == "!"  or word[-1:] == "?" or word[-1:] == "."):
-				tokens_with_punct.append(word[:-1])
-				tokens_with_punct.append(word[-1:])
-			else:
-				tokens_with_punct.append(word)
-		# Treat beginning and end of text as a beginning or end of sentence,
-		# respectively
-		end_token = tokens_with_punct[-1:][0]
-		if end_token != "." and end_token != "!" and end_token != "?":
-			tokens_with_punct.append(".")
-		return tokens_with_punct
-	
+	#Need to double-check
+	tokens_with_punct = split_punct(tokens, ["."])
+	# Treat beginning and end of text as a beginning or end of sentence,
+	# respectively
+	end_token = tokens_with_punct[-1:][0]
+	if end_token != "." and end_token != "!" and end_token != "?":
+		tokens_with_punct.append(".")
+	return tokens_with_punct
+
+def create_unks(tokens):
+	encountered_words = set()
+	for i in range(0, len(tokens)):
+		word = tokens[i]
+		if word not in encountered_words:
+			tokens[i] = "<UNK>"
+		encountered_words.add(word)
+	return tokens
+
 class Unigram():
 	def __init__(self, filename=None, text_string=None):
 		#Reads in text of specified file
@@ -35,7 +51,7 @@ class Unigram():
 			else:
 				self.text = text_string
 		# self.tokens = add_sentence_markers()
-		self.tokens = nltk.wordpunct_tokenize(self.text)
+		self.tokens = create_unks(split_punct(nltk.wordpunct_tokenize(self.text)))
 		self.num_words = float(len(self.tokens))
 		
 		self.frequencies = None
@@ -100,7 +116,7 @@ class Unigram():
 	def get_probability(self, unigram):
 		probs = self.get_probabilities()
 		if unigram not in probs:
-			return 0.
+			return probs["<UNK>"]
 		return probs[unigram] 
 		
 class Bigram():
@@ -115,7 +131,7 @@ class Bigram():
 			else:
 				self.text = text_string
 				
-		self.tokens = add_sentence_markers(nltk.wordpunct_tokenize(self.text))
+		self.tokens = create_unks(add_sentence_markers(nltk.wordpunct_tokenize(self.text)))
 		self.num_words = float(len(self.tokens))
 		self.smoothed = False
 		self.uni_frequencies = None
@@ -147,7 +163,6 @@ class Bigram():
 						self.bi_frequencies[bigram_token] += 1.
 					else:
 						self.bi_frequencies[bigram_token] = 1.
-						
 				#unigram frequencies
 				if unigram_token in self.uni_frequencies:
 					self.uni_frequencies[unigram_token] += 1.
@@ -176,19 +191,27 @@ class Bigram():
 		self.bigrams = None
 		self.get_probabilities()
 		self.smoothed = True
-		
+	
+	#Smooth with Good-Turing	
+	def gt_smooth(self):
+		pass
+	
 	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
 		probs = self.get_probabilities()
-		if bigram not in bi_freqs and not self.smoothed:
+		# Deal with unknowns here
+		if (first,) not in uni_freqs or (second,) not in uni_freqs:
+			if (first,) not in uni_freqs and (second,) in uni_freqs:
+				return self.get_probability(("<UNK>", second))
+			elif (first,) in uni_freqs and (second,) not in uni_freqs:
+				return self.get_probability((first, "<UNK>"))
+			else:
+				return self.get_probability(("<UNK>", "<UNK>"))
+		elif bigram not in bi_freqs and not self.smoothed:
 			return 0.
 		elif bigram not in bi_freqs and self.smoothed:
-			# Deal with unknowns here
-			if (first,) not in uni_freqs or (second,) not in uni_freqs:
-				return 0.
-			else: 
-				return 1./uni_freqs[(first,)]
+			return 1./uni_freqs[(first,)]
 		else:
 			return probs[bigram]
 	
@@ -211,14 +234,15 @@ class Bigram():
 		
 		
 
-b = Bigram(filename="data/areeb.train")
-b.smooth()
+#b = Bigram(filename="test_text")
+#print b.tokens
+#b.smooth()
 """
 summ = 0.
 for (word,) in b.uni_frequencies:
 	summ += b.get_probability((word,"."))
 print summ"""
-print b.generate_sentence()
+#print b.generate_sentence()
 """
 print b.bigrams
 print b.get_probability(("twice","twice"), True)
