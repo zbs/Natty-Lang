@@ -6,6 +6,10 @@ import nltk, math, random
 	Perform unigram smoothing
 """
 
+NONE = 0
+LAPLACE = 1
+GOOD_TURING = 2
+
 def is_punct(char):
 	return char == "!" or char == "?" or char == "."
 
@@ -131,11 +135,19 @@ class Bigram():
 			else:
 				self.text = text_string
 				
-		self.tokens = create_unks(add_sentence_markers(nltk.wordpunct_tokenize(self.text)))
+		self.tokens = create_unks(add_sentence_markers(tokenize(self.text)))
 		self.num_words = float(len(self.tokens))
-		self.smoothed = False
+		self.smoothed = NONE
+		
+		# Adjusted counts using Good-Turing discounting
+		self.adjusted_bigram_counts = None
+		self.adjusted_unigram_counts = None
+		
+		# Unsmoothed frequencies
 		self.uni_frequencies = None
 		self.bi_frequencies = None
+		
+		#Probabilities
 		self.bigrams = None
 		
 	def get_num_tokens(self):
@@ -190,7 +202,7 @@ class Bigram():
 			uni_freqs[key] += len(uni_freqs)
 		self.bigrams = None
 		self.get_probabilities()
-		self.smoothed = True
+		self.smoothed = LAPLACE
 	
 	
 	def guess_freq(self, freq_dict,f,max):
@@ -202,41 +214,53 @@ class Bigram():
 				right = (f,freq_dict[f])
 		return left[1] + (right[1] - left[1])/(right[0]-left[0])
 			
-	"""
-	def good_turing_smooth(self):
-		(un1i_freqs, bi_freqs) = self.get_frequencies()
+	
+	def get_good_turing_counts(self,freqs):
+		self.smoothed = GOOD_TURING
 		freq_dict = dict()
-		max = 0
+		max_freq = 0
 		#initialize freq_vector with known bigrams
-		for bigram in bi_freqs:
-			f = bi_freqs[bigram]
-			if f > max:
-				max = f
+		for bigram in freqs:
+			f = freqs[bigram]
+			if f > max_freq:
+				max_freq = f
 			if f in freq_dict:
 				freq_dict[f] += 1.
 			else:
 				freq_dict[f] = 1.
 		#count total number of bigrams observed
 		N = len(self.tokens)
-		print N
 		#set all unfound freq = highest neighbor
-		for f in range(1,int(max)):
+		for f in range(1,int(max_freq)):
 			if f not in freq_dict:
-				freq_dict[f] = self.guess_freq(freq_dict,f,max) 
-		freq_dict[max+1] = freq_dict[max]
+				freq_dict[f] = self.guess_freq(freq_dict,f,max_freq) 
+		freq_dict[max_freq+1] = freq_dict[max_freq]
 		
-		adj_prob = dict()
-		adj_prob[0] = freq_dict[1]/N
-		print freq_dict
+		adjusted_counts = dict()
+		adjusted_counts[0] = freq_dict[1]
 		
 		for f in range(1,len(freq_dict)):
-			adj_prob[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])/N
-		print adj_prob
+			adjusted_counts[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])
+		return adjusted_counts
 		
-		summ = 0.
-		for p in range(1,len(adj_prob)):
-			print (adj_prob[p],N,freq_dict[p])
-	  """  
+	def good_turing_smooth(self):
+		if self.adjusted_bigram_counts == None or self.adjusted_unigram_counts == None:
+			(uni_freqs, bi_freqs) = self.get_frequencies()
+			# Adjusted counts using Good-Turing discounting
+			self.adjusted_bigram_counts = self.get_good_turing_counts(bi_freqs)
+			self.adjusted_unigram_counts = self.get_good_turing_counts(uni_freqs)
+		return (self.adjusted_unigram_counts, self.adjusted_bigram_counts)
+	
+	#fix this
+	def get_good_turing_probability(self, bigram):
+		(adjusted_unigram_counts, adjusted_bigram_counts) = self.good_turing_smooth()
+		(uni_freqs, bi_freqs) = self.get_frequencies()
+		bi_rank = bi_freqs[bigram]
+		(first, second) = bigram
+		uni_rank = uni_freqs[first]
+		return bi_rank / uni_rank 
+		
+		
 	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
@@ -249,10 +273,12 @@ class Bigram():
 				return self.get_probability((first, "<UNK>"))
 			else:
 				return self.get_probability(("<UNK>", "<UNK>"))
-		elif bigram not in bi_freqs and not self.smoothed:
+		elif bigram not in bi_freqs and self.smoothed == NONE:
 			return 0.
-		elif bigram not in bi_freqs and self.smoothed:
+		elif bigram not in bi_freqs and self.smoothed == LAPLACE:
 			return 1./uni_freqs[(first,)]
+		elif self.smoothed == GOOD_TURING:
+			return self.get_good_turing_probability(bigram)
 		else:
 			return probs[bigram]
 	
@@ -274,10 +300,10 @@ class Bigram():
 		return sentence[:-1] + cur_word
 		
 
-#b = Unigram(filename="test_text")
+b = Bigram(filename="test_text")
 #print b.tokens
-#b.smooth()
-#print b.generate_sentence()
+b.good_turing_smooth()
+print b.generate_sentence()
 """
 summ = 0.
 for (word,) in b.uni_frequencies:
