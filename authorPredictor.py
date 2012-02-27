@@ -17,14 +17,14 @@ def perplexity(text, model):
         if (prob != 0):
             return acc + text_freq[bigram] * math.log( prob )
         return acc
-    product = math.e ** reduce (log_prob, text_freq, 0.0)
+    product =  reduce (log_prob, text_freq, 0.0)
     if product == 0:
         return 0
-    return (product) ** (- 1. / text.get_num_tokens() )
+    return (math.e ) ** (- product / text.get_num_tokens() )
 
         
 #See textbook page 122
-def email_prediction(train, test):
+def email_prediction(train, validate, test):
         train_data = []
         with open(train) as fp:
                 train_data = fp.readlines()
@@ -47,11 +47,15 @@ def email_prediction(train, test):
 
         #read in validation or train emails
         validate_data = []
-        with open(test) as fp:
+        with open(validate) as fp:
                 validate_data = fp.readlines()
-
+        test_data = []
+        with open(test) as fp:
+                test_data = fp.readlines()
+        validate_data.extend(test_data)
         predicted_authors = []
         actual_authors = []
+        print len(validate_data)
         for line in validate_data:
                 actual_author, email = line.split(' ',1)
                 actual_author = actual_author[:-1]
@@ -68,6 +72,7 @@ def email_prediction(train, test):
                 max_author = None
                 if unigram.get_num_tokens() == 0:
                     max_author = random.choice(authors)
+                    predicted_authors.append(max_author)
                     continue
                 for author in authors:
                         perplex = 0
@@ -90,8 +95,12 @@ if __name__ == '__main__':
     text = Bigram(text_string = "one one one.")
     print perplexity(text, model)
     '''
-    actual, predicted = email_prediction("train.txt", "validation.txt")
-    print predicted
-    print actual
-    print reduce( lambda acc, x: acc + (x[0] == x[1]), zip(actual, predicted), 0.0) / len(actual)
+    actual, predicted = email_prediction("train.txt", "validation.txt", "test.txt")
+    submission = open("submission.csv", 'w')
+    for a in predicted:
+        submission.write(a + "\n")
+    print "done"
+    #print predicted
+    #print actual
+    #print reduce( lambda acc, x: acc + (x[0] == x[1]), zip(actual, predicted), 0.0) / len(actual)
     
