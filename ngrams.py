@@ -1,33 +1,27 @@
 import nltk, math, random
 
-filename = "../Proj1Data/test.txt"
+#filename = "../Proj1Data/test.txt"
 
 """
 	Perform unigram smoothing
 """
 
 def is_punct(char):
-    return char == "!" or char == "?" or char == "."
+	return char == "!" or char == "?" or char == "."
 
-def split_punct(tokens, tokens_with_punct=[]):
-	for word in tokens:
-		if len(word) > 1 and \
-			(word[-1:] == "!"  or word[-1:] == "?" or word[-1:] == "."):
-			tokens_with_punct.append(word[:-1])
-			tokens_with_punct.append(word[-1:])
-		else:
-			tokens_with_punct.append(word)
-	return tokens_with_punct
+def tokenize(string):
+	return nltk.regexp_tokenize(string, pattern='\w+|\$[\d\.]+|\S+') 
 
 def add_sentence_markers(tokens):
-	#Need to double-check
-	tokens_with_punct = split_punct(tokens, ["."])
 	# Treat beginning and end of text as a beginning or end of sentence,
 	# respectively
-	end_token = tokens_with_punct[-1:][0]
+	if len(tokens) == 0:
+		#print "empty tokens"
+		return tokens + ["."]
+	end_token = tokens[-1:][0]
 	if end_token != "." and end_token != "!" and end_token != "?":
-		tokens_with_punct.append(".")
-	return tokens_with_punct
+		tokens.append(".")
+	return ["."] + tokens
 
 def create_unks(tokens):
 	encountered_words = set()
@@ -38,9 +32,12 @@ def create_unks(tokens):
 		encountered_words.add(word)
 	return tokens
 
+# Note: for Unigram smoothing, do ( C(w) + 1 ) / (N + V), where N = number of tokens
+# and v = number of wordtypes 
 class Unigram():
-	def __init__(self, filename=None, text_string=None):
+	def __init__(self, filename=None, text_string=None, unk=False):
 		#Reads in text of specified file
+		self.unk = unk
 		if filename != None:
 			with open(filename) as fp:
 				self.text = fp.read()
@@ -50,15 +47,16 @@ class Unigram():
 				return 
 			else:
 				self.text = text_string
-		# self.tokens = add_sentence_markers()
-		self.tokens = create_unks(split_punct(nltk.wordpunct_tokenize(self.text)))
+		self.tokens = add_sentence_markers(tokenize(self.text))
+		if unk:
+			self.tokens = create_unks(self.tokens)
 		self.num_words = float(len(self.tokens))
 		
 		self.frequencies = None
 		self.unigrams = None
 		
 	def get_num_tokens(self):
-		return self.tokens
+		return len(self.tokens)
 	
 	def has_tokens(self, gram):
 		freqs = self.get_frequencies()
@@ -116,7 +114,9 @@ class Unigram():
 	def get_probability(self, unigram):
 		probs = self.get_probabilities()
 		if unigram not in probs:
-			return probs["<UNK>"]
+			if self.unk:
+				return probs["<UNK>"]
+			return 0. 
 		return probs[unigram] 
 		
 class Bigram():
@@ -193,50 +193,50 @@ class Bigram():
 		self.smoothed = True
 	
 	
-    def guess_freq(self, freq_dict,f,max):
-        #we know freq_dict[f-1] exists by the order of filling freq_dict
-        left = (f-1,freq_dict[f-1])
-        while f <= max:
-            f += 1
-            if f in freq_dict:
-                right = (f,freq_dict[f])
-        return left[1] + (right[1] - left[1])/(right[0]-left[0])
-            
-                
-    def good_turing_smooth(self):
-        (uni_freqs, bi_freqs) = self.get_frequencies()
-        freq_dict = dict()
-        max = 0
-        #initialize freq_vector with known bigrams
-        for bigram in bi_freqs:
-            f = bi_freqs[bigram]
-            if f > max:
-                max = f
-            if f in freq_dict:
-                freq_dict[f] += 1.
-            else:
-                freq_dict[f] = 1.
-        #count total number of bigrams observed
-        N = len(self.tokens)
-        print N
-        #set all unfound freq = highest neighbor
-        for f in range(1,int(max)):
-            if f not in freq_dict:
-                freq_dict[f] = self.guess_freq(freq_dict,f,max) 
-        freq_dict[max+1] = freq_dict[max]
+	def guess_freq(self, freq_dict,f,max):
+		#we know freq_dict[f-1] exists by the order of filling freq_dict
+		left = (f-1,freq_dict[f-1])
+		while f <= max:
+			f += 1
+			if f in freq_dict:
+				right = (f,freq_dict[f])
+		return left[1] + (right[1] - left[1])/(right[0]-left[0])
+			
+	"""
+	def good_turing_smooth(self):
+		(un1i_freqs, bi_freqs) = self.get_frequencies()
+		freq_dict = dict()
+		max = 0
+		#initialize freq_vector with known bigrams
+		for bigram in bi_freqs:
+			f = bi_freqs[bigram]
+			if f > max:
+				max = f
+			if f in freq_dict:
+				freq_dict[f] += 1.
+			else:
+				freq_dict[f] = 1.
+		#count total number of bigrams observed
+		N = len(self.tokens)
+		print N
+		#set all unfound freq = highest neighbor
+		for f in range(1,int(max)):
+			if f not in freq_dict:
+				freq_dict[f] = self.guess_freq(freq_dict,f,max) 
+		freq_dict[max+1] = freq_dict[max]
 		
-        adj_prob = dict()
-        adj_prob[0] = freq_dict[1]/N
-        print freq_dict
+		adj_prob = dict()
+		adj_prob[0] = freq_dict[1]/N
+		print freq_dict
 		
-        for f in range(1,len(freq_dict)):
-            adj_prob[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])/N
-        print adj_prob
+		for f in range(1,len(freq_dict)):
+			adj_prob[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])/N
+		print adj_prob
 		
-        summ = 0.
-        for p in range(1,len(adj_prob)):
-            print (adj_prob[p],N,freq_dict[p])
-        
+		summ = 0.
+		for p in range(1,len(adj_prob)):
+			print (adj_prob[p],N,freq_dict[p])
+	  """  
 	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
@@ -274,13 +274,14 @@ class Bigram():
 		return sentence[:-1] + cur_word
 		
 
-#b = Bigram(filename="test_text")
+#b = Unigram(filename="test_text")
 #print b.tokens
 #b.smooth()
+#print b.generate_sentence()
 """
 summ = 0.
 for (word,) in b.uni_frequencies:
-    summ += b.get_probability((word,"."))
+	summ += b.get_probability((word,"."))
 print summ"""
 #print b.generate_sentence()
 """
