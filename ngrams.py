@@ -7,7 +7,7 @@ filename = "../Proj1Data/test.txt"
 """
 
 def is_punct(char):
-	return char == "!" or char == "?" or char == "."
+    return char == "!" or char == "?" or char == "."
 
 def split_punct(tokens, tokens_with_punct=[]):
 	for word in tokens:
@@ -232,7 +232,6 @@ class Bigram():
 			cur_word = self.next_word(cur_word)
 		return sentence[:-1] + cur_word
 		
-		
 
 #b = Bigram(filename="test_text")
 #print b.tokens
@@ -240,7 +239,7 @@ class Bigram():
 """
 summ = 0.
 for (word,) in b.uni_frequencies:
-	summ += b.get_probability((word,"."))
+    summ += b.get_probability((word,"."))
 print summ"""
 #print b.generate_sentence()
 """
