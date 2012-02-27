@@ -2,14 +2,9 @@ import nltk, math, random
 
 filename = "../Proj1Data/test.txt"
 
-"""
-	Outstanding issues:
-		- How to deal with punctuation, how to mark end of file (i.e. do we
-		 	insert an end of sentence marker there?
-		- Additionally, should we insert a beginning of sentence marker at the beginning
-			of the file?
-		- If we use markers, how do we differentiate between different types of punctuation?
-"""
+def is_punct(char):
+	return char == "!" or char == "?" or char == "."
+
 def add_sentence_markers(tokens):
 		#Need to double-check
 		tokens_with_punct = ["."]
@@ -72,20 +67,30 @@ class Unigram():
 			frequencies = self.get_frequencies()
 			self.unigrams = dict()
 			for word in frequencies:
-				self.unigrams[(word,)] = frequencies[word] / self.num_words
+				self.unigrams[word] = frequencies[word] / self.num_words
 			return self.unigrams
 			
 	def next_word(self):
-		# Need to implement this using new structure
-		pass
+		ran = random.uniform(0,1)
+		uni_freqs = self.get_frequencies()
+		for word in uni_freqs: 
+			ran -= self.get_probability(word)
+			if ran <= 0:
+				return word
+		return "ERROR"
 	"""
 		num = random.randint(0,len(self.tokens)-1)
 		next = self.tokens[num]
 		return next
 	"""
 		
-	def gen_sentence(self, sentence_length):
-		pass
+	def generate_sentence(self):
+		cur_word = self.next_word()
+		sentence = ""
+		while not is_punct(cur_word):
+			sentence += cur_word + " "
+			cur_word = self.next_word()
+		return sentence[:-1] + cur_word
 	"""
 		sentence = ""
 		for i in range(sentence_length):
@@ -95,7 +100,7 @@ class Unigram():
 	def get_probability(self, unigram):
 		probs = self.get_probabilities()
 		if unigram not in probs:
-			return 0
+			return 0.
 		return probs[unigram] 
 		
 class Bigram():
@@ -112,7 +117,7 @@ class Bigram():
 				
 		self.tokens = add_sentence_markers(nltk.wordpunct_tokenize(self.text))
 		self.num_words = float(len(self.tokens))
-		
+		self.smoothed = False
 		self.uni_frequencies = None
 		self.bi_frequencies = None
 		self.bigrams = None
@@ -170,23 +175,51 @@ class Bigram():
 			uni_freqs[key] += len(uni_freqs)
 		self.bigrams = None
 		self.get_probabilities()
+		self.smoothed = True
 		
-	def get_probability(self, bigram, smoothed=False):
+	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
 		probs = self.get_probabilities()
-		if bigram not in bi_freqs and not smoothed:
+		if bigram not in bi_freqs and not self.smoothed:
 			return 0.
-		elif smoothed:
+		elif bigram not in bi_freqs and self.smoothed:
 			# Deal with unknowns here
-			if first not in uni_freqs or second not in uni_freqs:
+			if (first,) not in uni_freqs or (second,) not in uni_freqs:
 				return 0.
 			else: 
 				return 1./uni_freqs[(first,)]
-		return probs[bigram]
-"""
-b = Bigram("test_text")
+		else:
+			return probs[bigram]
+	
+	def next_word(self, prev_word):
+		ran = random.uniform(0,1)
+		(uni_freqs, bi_freqs) = self.get_frequencies()
+		for (word,) in uni_freqs: 
+			ran -= self.get_probability((prev_word, word))
+			if ran <= 0:
+				return word
+		return "ERROR"
+		
+	def generate_sentence(self):
+		cur_word = self.next_word(".")
+		sentence = ""
+		while not is_punct(cur_word):
+			sentence += cur_word + " "
+			cur_word = self.next_word(cur_word)
+		return sentence[:-1] + cur_word
+		
+		
+
+b = Bigram(filename="data/areeb.train")
 b.smooth()
+"""
+summ = 0.
+for (word,) in b.uni_frequencies:
+	summ += b.get_probability((word,"."))
+print summ"""
+print b.generate_sentence()
+"""
 print b.bigrams
 print b.get_probability(("twice","twice"), True)
 print b.get_probability((".","once"),True)
