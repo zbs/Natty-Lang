@@ -6,75 +6,92 @@ New
 from ngrams import *
 
 def perplexity(text, model):
-    text_freq = text.get_frequencies()
-    model_prob = model.get_probabilities()
-    model_prob.smooth()
-    
-    def log_probability(acc, ngram):
-        prob = 0
-        if ngram in model_prob:
-            prob = math.log( model_prob[ngram])
-        elif model.has_tokens(ngram):
-            prob = math.log( model_prob["<zero_freq>"])
-        return acc + text_freq[ngram] * prob
-    
-    product = reduce (log_probability, text_freq, 0.0)
-    return math.pow(product, - math.e / text.get_num_tokens() )
-   #is_ngram()
-   #get_zero_freq_prob()
-   #smooth() 
-    
+    text_freq = None
+    if isinstance(text, Bigram):
+        _, text_freq = text.get_frequencies()
+        model.smooth()
+    else:
+        text_freq = text.get_frequencies()
+    def log_prob(acc, bigram):
+        prob = model.get_probability(bigram)
+        if (prob != 0):
+            return acc + text_freq[bigram] * math.log( prob )
+        return acc
+    product = math.e ** reduce (log_prob, text_freq, 0.0)
+    if product == 0:
+        return 0
+    return (product) ** (- 1. / text.get_num_tokens() )
+
+        
 #See textbook page 122
-def email_prediction(filename):
+def email_prediction(train, test):
         train_data = []
-        with open(filename) as fp:
+        with open(train) as fp:
                 train_data = fp.readlines()
         #concatenate emails from same author
         author_texts = {}
         for line in train_data:
                 #author is the first word, email is the rest
                 author, email = line.split(' ',1)
+                author = author[:-1]
                 if author in author_texts:
                         author_texts[author] += email
                 else:
                         author_texts[author] = email
+        authors = list(author_texts.iterkeys())
         #generate unigram model for each author
         #unigram_probs = nested dict of author -> unigram -> probability
-        unigrams_probs = {}
-        for author in author_texts.iterkeys():
-                unigrams = Unigram(author_texts[author])
-                unigrams_probs[author] = unigrams.getProb()
+        author_unigram = {}
+        for author in authors:
+                author_unigram[author] = Unigram(text_string = author_texts[author])
 
         #read in validation or train emails
         validate_data = []
-        with open(filename) as fp:
+        with open(test) as fp:
                 validate_data = fp.readlines()
 
-        predicted_author = []
+        predicted_authors = []
+        actual_authors = []
         for line in validate_data:
-                _, email = line.split(' ',1)
+                actual_author, email = line.split(' ',1)
+                actual_author = actual_author[:-1]
+                actual_authors.append(actual_author)
                 #generate unigram model on just that email and find words that occur only once (singletons)
-                unigrams = Unigram(email)
+                unigram = Unigram(text_string = email)
+                frequencies = unigram.get_frequencies()
                 #singletons = array of unigrams
-                singletons = filter( lambda x : unigrams[x]==1, unigrams.getFreq() )
+                singletons = filter( lambda x : frequencies[x]==1, frequencies )
+                singleton_unigram = Unigram(text_string = ' '.join(singletons))
                 #for each author, compute perplexity of singletons
                 #find author with max perplexity
-                max_perplexity = 0
+                max_perplexity = -1
                 max_author = None
-                for author in author_texts.iterkeys():
-                        #find the probabilities (in the known author text) of the singletons (in the unknown text)
-                        singleton_probs = {}
-                        for singleton in singletons:
-                                singleton_probs[singleton] = unigrams_probs[author][singleton];
-                        perplexity =  perplexity(singleton_probs)
-                        if (perplexity > max_perplexity) :
-                                max_perplexity = perplexity
+                if unigram.get_num_tokens() == 0:
+                    max_author = random.choice(authors)
+                    continue
+                for author in authors:
+                        perplex = 0
+                        if singleton_unigram.get_num_tokens() == 0:
+                            perplex =  perplexity( unigram, author_unigram[author])
+                        else:
+                            perplex =  perplexity( singleton_unigram, author_unigram[author])
+                        if (perplex > max_perplexity) :
+                                max_perplexity = perplex
                                 max_author = author
-                predicted_author.append(max_author)
-        return predicted_author
+                predicted_authors.append(max_author)
+        return actual_authors, predicted_authors
 
 
 
 
 if __name__ == '__main__':
-    pass
+    '''
+    model = Bigram(text_string = "one one one two two three.")
+    text = Bigram(text_string = "one one one.")
+    print perplexity(text, model)
+    '''
+    actual, predicted = email_prediction("train.txt", "validation.txt")
+    print predicted
+    print actual
+    print reduce( lambda acc, x: acc + (x[0] == x[1]), zip(actual, predicted), 0.0) / len(actual)
+    
