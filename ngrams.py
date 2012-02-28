@@ -2,10 +2,6 @@ import nltk, math, random
 
 #filename = "../Proj1Data/test.txt"
 
-"""
-	Perform unigram smoothing
-"""
-
 NONE = 0
 LAPLACE = 1
 GOOD_TURING = 2
@@ -120,7 +116,7 @@ class Unigram():
 		return sentence[:-1] + cur_word
 		
 class Bigram():
-	def __init__(self, filename=None, text_string=None):
+	def __init__(self, filename=None, text_string=None, unk=False, smoothed=NONE):
 		if filename != None:
 			with open(filename) as fp:
 				self.text = fp.read()
@@ -131,10 +127,14 @@ class Bigram():
 			else:
 				self.text = text_string
 				
-		###self.tokens = create_unks(add_sentence_markers(tokenize(self.text)))
-		self.tokens = (add_sentence_markers(tokenize(self.text)))
-		self.num_words = float(len(self.tokens))
 		self.smoothed = NONE
+		self.unk = unk
+		
+		###self.tokens = create_unks(add_sentence_markers(tokenize(self.text)))
+		self.tokens = add_sentence_markers(tokenize(self.text))
+		if self.unk:
+			self.tokens = create_unks(self.tokens)
+		self.num_words = float(len(self.tokens))
 		
 		# Adjusted counts using Good-Turing discounting
 		self.adjusted_bigram_counts = None
@@ -152,56 +152,46 @@ class Bigram():
 	
 	def has_tokens(self, gram):
 		(first, second) = gram
-		(uni_freqs, bi_freqs) = self.get_frequencies()
+		(uni_freqs, _) = self.get_frequencies()
 		return first in uni_freqs and second in uni_freqs
 		
 	def get_frequencies(self):
 		if self.uni_frequencies == None or self.bi_frequencies == None:
-			# Still need to figure out beginning-of-sentence markers
 			l = len(self.tokens)
-			end_punct = self.tokens[-1:][0]
 			self.uni_frequencies = dict()
 			self.bi_frequencies = dict()
-			# Disregard final period
 			for i in range(l):
-				unigram_token = (self.tokens[i],)
 				if(i != l-1):
-					#bigram frequencies
+					# Bigram frequencies
 					bigram_token = (self.tokens[i], self.tokens[i+1])
 					if bigram_token in self.bi_frequencies:
 						self.bi_frequencies[bigram_token] += 1.
 					else:
 						self.bi_frequencies[bigram_token] = 1.
-				#unigram frequencies
+				
+				# Unigram frequencies
+				unigram_token = (self.tokens[i],)
 				if unigram_token in self.uni_frequencies:
 					self.uni_frequencies[unigram_token] += 1.
 				else:
 					self.uni_frequencies[unigram_token] = 1.
+					
+			# Decrement count for artificially inserted period
+			# so that the denominator for bigram probabilities is accurate.
+			end_punct = self.tokens[-1:][0]
 			self.uni_frequencies[(end_punct,)] -= 1.
+			
+			# Add one smoothing -- couldn't be implemented above because 
+			# the number of wordtypes wasn't known a priori.
+			if (self.smoothed == LAPLACE):
+				for key in self.bi_frequencies:
+					self.bi_frequencies[key] += 1.
+				for key in self.uni_frequencies:
+					self.uni_frequencies[key] += len(self.uni_frequencies)
+				
 		return (self.uni_frequencies, self.bi_frequencies)
 		
-	def get_probabilities(self):
-		if self.bigrams != None:
-			return self.bigrams
-		else:
-			(uni_frequencies, bi_frequencies) = self.get_frequencies()
-			self.bigrams = dict()
-			for (first, second) in bi_frequencies:
-				self.bigrams[(first, second)] = \
-					bi_frequencies[(first,second)] / uni_frequencies[(first,)]
-			return self.bigrams
 
-	def smooth(self):
-		(uni_freqs, bi_freqs) = self.get_frequencies()
-		for key in bi_freqs:
-			bi_freqs[key] += 1.
-		for key in uni_freqs:
-			uni_freqs[key] += len(uni_freqs)
-		self.bigrams = None
-		self.get_probabilities()
-		self.smoothed = LAPLACE
-	
-	
 	def guess_freq(self, freq_dict,f,max):
 		#we know freq_dict[f-1] exists by the order of filling freq_dict
 		left = (f-1,freq_dict[f-1])
@@ -249,7 +239,6 @@ class Bigram():
 			self.adjusted_unigram_counts = self.get_good_turing_counts(uni_freqs)
 		return (self.adjusted_unigram_counts, self.adjusted_bigram_counts)
 	
-	#fix this
 	def get_good_turing_probability(self, bigram):
 		((adjusted_unigram_counts,uni_freq_dict), 
 			(adjusted_bigram_counts,bi_freq_dict)) = self.good_turing_smooth()
@@ -259,7 +248,6 @@ class Bigram():
 		if bigram not in bi_freqs:
 			# Use special equation for 0 frequency class bigrams
 			N = len(self.tokens) - 1
-			
 			s = adjusted_bigram_counts[0]/N/(N**2 - N)
 			return s
 		
@@ -269,46 +257,50 @@ class Bigram():
 			adjusted_unigram_counts[uni_freqs[(first,)]]/uni_freq_dict[uni_freqs[(first,)]]
 		
 		# Insert equation to generate probability based on these counts
-		#print t
 		return bigram_count/unigram_count
-		
-		
+
 	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
-		probs = self.get_probabilities()
+
 		# Deal with unknowns here
-		if (first,) not in uni_freqs or (second,) not in uni_freqs:
+		if (self.unk):
+			if (first,) not in uni_freqs and (second,) not in uni_freqs:
+				return self.get_probability(("<UNK>", "<UNK>"))
 			if (first,) not in uni_freqs and (second,) in uni_freqs:
 				return self.get_probability(("<UNK>", second))
-			elif (first,) in uni_freqs and (second,) not in uni_freqs:
+			if (first,) in uni_freqs and (second,) not in uni_freqs:
 				return self.get_probability((first, "<UNK>"))
+		
+		# Deal with Laplace smoothing appropriately
+		if (self.smoothed == LAPLACE):
+			if bigram not in bi_freqs:
+				return 1./uni_freqs[(first,)]
 			else:
-				return self.get_probability(("<UNK>", "<UNK>"))
-		elif bigram not in bi_freqs and self.smoothed == NONE:
-			return 0.
-		elif bigram not in bi_freqs and self.smoothed == LAPLACE:
-			return 1./uni_freqs[(first,)]
+				return bi_freqs[(first,second)] / uni_freqs[(first,)]
+				
+		# Deal with Good-Turing smoothing 
+		if (self.smoothed == GOOD_TURING):
+			#return self.get_good_turing_probability(bigram)
+			pass
 		
-		elif self.smoothed == GOOD_TURING:
-			return self.get_good_turing_probability(bigram)
-		else:
-			return probs[bigram]
-		
+		# No smoothing
+		if (self.smoothed == NONE):
+			if bigram not in bi_freqs:
+				return 0.
+			else:
+				return (bi_freqs[(first,second)] / uni_freqs[(first,)])
 		
 	def next_word(self, prev_word):
 		ran = random.uniform(0,1)
-		(uni_freqs, bi_freqs) = self.get_frequencies()
-		finalword = ""
-		summ = 0.
+		(uni_freqs, _) = self.get_frequencies()
+		sum_ = 0.
 		for (word,) in uni_freqs: 
-			t = self.get_probability((prev_word, word))
-			summ += t
-			ran -= t
+			word_prob = self.get_probability((prev_word, word))
+			sum_ += word_prob
+			ran -= word_prob
 			if ran <= 0:
-				finalword = word
-		print summ
-		return finalword
+				return word
 		
 	def generate_sentence(self):
 		cur_word = self.next_word(".")
@@ -319,19 +311,7 @@ class Bigram():
 		return sentence[:-1] + cur_word
 		
 
-b = Unigram(filename="data/areeb.train", smoothed=False)
+b = Bigram(filename="data/areeb.train", smoothed=LAPLACE)
 #print b.tokens
 #b.good_turing_smooth()
 print b.generate_sentence()
-
-"""
-summ = 0.
-for (word,) in b.uni_frequencies:
-	summ += b.get_probability((word,"."))
-print summ"""
-#print b.generate_sentence()
-"""
-print b.bigrams
-print b.get_probability(("twice","twice"), True)
-print b.get_probability((".","once"),True)
-"""
