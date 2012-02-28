@@ -54,7 +54,7 @@ def email_prediction (train, validate, test, farmer_correction = False, remove_p
         #unigram_probs = nested dict of author -> unigram -> probability
         author_unigram = {}
         for author in authors:
-                author_unigram[author] = Unigram(text_string = author_texts[author])
+                author_unigram[author] = Unigram(text_string = author_texts[author], unk = False, smoothed = False)
                 avg_length[author] = author_unigram[author].get_num_tokens() / float(author_numer[author])
         #read in validation or train emails
         validate_data = []
@@ -75,14 +75,14 @@ def email_prediction (train, validate, test, farmer_correction = False, remove_p
                         email = email.replace(c," ")
                 actual_authors.append(actual_author)
                 #generate unigram model on just that email and find words that occur only once (singletons)
-                unigram = Unigram(text_string = email)
+                unigram = Unigram(text_string = email, unk = False, smoothed = False)
                 frequencies = unigram.get_frequencies()
                 #singletons = array of unigrams
                 if use_singletons:
                     singletons = filter( lambda x : frequencies[x]==1, frequencies )
                 else:
                     singletons = filter( lambda x : True, frequencies )
-                singleton_unigram = Unigram(text_string = ' '.join(singletons))
+                singleton_unigram = Unigram(text_string = ' '.join(singletons), unk = False, smoothed = False)
                 #for each author, compute perplexity of singletons
                 #find author with max perplexity
                 max_perplexity = 1000000000
@@ -130,7 +130,7 @@ def email_prediction (train, validate, test, farmer_correction = False, remove_p
         print "done"
 
 if __name__ == '__main__':
-    email_prediction("train.txt", "validation.txt", "test.txt")
+    email_prediction("train.txt", "validation.txt", "test.txt", farmer_correction = True, remove_punctuation = True)
     
         
     
