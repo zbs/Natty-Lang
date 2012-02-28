@@ -138,7 +138,9 @@ class Bigram():
 		
 		# Adjusted counts using Good-Turing discounting
 		self.adjusted_bigram_counts = None
-		self.adjusted_unigram_counts = None
+		# Represents the sum across the row of a 
+		# table of adjusted counts (C*)
+		self.adjusted_denominator = dict()
 		
 		# Unsmoothed frequencies
 		self.uni_frequencies = None
@@ -153,7 +155,7 @@ class Bigram():
 	def has_tokens(self, gram):
 		(first, second) = gram
 		(uni_freqs, _) = self.get_frequencies()
-		return first in uni_freqs and second in uni_freqs
+		return (first,) in uni_freqs and (second,) in uni_freqs
 		
 	def get_frequencies(self):
 		if self.uni_frequencies == None or self.bi_frequencies == None:
@@ -223,42 +225,31 @@ class Bigram():
 			if f not in freq_dict:
 				freq_dict[f] = self.guess_freq(freq_dict,f,max_freq) 
 		freq_dict[max_freq+1] = freq_dict[max_freq]
-		print freqs
-		print freq_dict
 		adjusted_counts = dict()
 		adjusted_counts[0] = freq_dict[1]
 		for f in range(1,len(freq_dict)):
 			adjusted_counts[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])
-		return (adjusted_counts,freq_dict)
+		return adjusted_counts
 		
 	def good_turing_smooth(self):
-		if self.adjusted_bigram_counts == None or self.adjusted_unigram_counts == None:
+		if self.adjusted_bigram_counts == None:
 			(uni_freqs, bi_freqs) = self.get_frequencies()
 			# Adjusted counts using Good-Turing discounting
 			self.adjusted_bigram_counts = self.get_good_turing_counts(bi_freqs)
-			self.adjusted_unigram_counts = self.get_good_turing_counts(uni_freqs)
-		return (self.adjusted_unigram_counts, self.adjusted_bigram_counts)
+		return self.adjusted_bigram_counts
 	
 	def get_good_turing_probability(self, bigram):
-		((adjusted_unigram_counts,uni_freq_dict), 
-			(adjusted_bigram_counts,bi_freq_dict)) = self.good_turing_smooth()
-		(uni_freqs, bi_freqs) = self.get_frequencies()
-		(first, second) = bigram
-			
+		adjusted_bigram_counts = self.good_turing_smooth()
+		(_, bi_freqs) = self.get_frequencies()
+		(first, _) = bigram
+		
 		if bigram not in bi_freqs:
-			# Use special equation for 0 frequency class bigrams
-			N = len(self.tokens) - 1
-			s = adjusted_bigram_counts[0]/N/(N**2 - N)
-			return s
+			adjusted_numerator_count = adjusted_bigram_counts[0]
+		else:
+			adjusted_numerator_count = adjusted_bigram_counts[bi_freqs[bigram]] 
 		
-		bigram_count = \
-			adjusted_bigram_counts[bi_freqs[bigram]]/bi_freq_dict[bi_freqs[bigram]]
-		unigram_count = \
-			adjusted_unigram_counts[uni_freqs[(first,)]]/uni_freq_dict[uni_freqs[(first,)]]
+		return adjusted_numerator_count / self.get_gt_bigram_count(first)
 		
-		# Insert equation to generate probability based on these counts
-		return bigram_count/unigram_count
-
 	def get_probability(self, bigram):
 		(first, second) = bigram
 		(uni_freqs, bi_freqs) = self.get_frequencies()
@@ -281,8 +272,7 @@ class Bigram():
 				
 		# Deal with Good-Turing smoothing 
 		if (self.smoothed == GOOD_TURING):
-			#return self.get_good_turing_probability(bigram)
-			pass
+			return self.get_good_turing_probability(bigram)
 		
 		# No smoothing
 		if (self.smoothed == NONE):
@@ -290,14 +280,30 @@ class Bigram():
 				return 0.
 			else:
 				return (bi_freqs[(first,second)] / uni_freqs[(first,)])
-		
+	
+	"""
+		This essentially calculates the sum across the row of bigrams that begin 
+		with prev_word
+	"""	
+	def get_gt_bigram_count(self,prev_word):
+		if prev_word not in self.adjusted_denominator:
+			(uni_freqs, bi_freqs) = self.get_frequencies()
+			adjusted_bigram_counts = self.good_turing_smooth()
+			
+			self.adjusted_denominator[prev_word] = 0.
+			for (word,) in uni_freqs:
+				if (prev_word, word) not in bi_freqs:
+					self.adjusted_denominator[prev_word] += adjusted_bigram_counts[0]
+				else:
+					self.adjusted_denominator[prev_word] += \
+						adjusted_bigram_counts[bi_freqs[(prev_word, word)]]	
+		return self.adjust_denominator[prev_word]	
+				
 	def next_word(self, prev_word):
 		ran = random.uniform(0,1)
 		(uni_freqs, _) = self.get_frequencies()
-		sum_ = 0.
 		for (word,) in uni_freqs: 
 			word_prob = self.get_probability((prev_word, word))
-			sum_ += word_prob
 			ran -= word_prob
 			if ran <= 0:
 				return word
@@ -310,8 +316,9 @@ class Bigram():
 			cur_word = self.next_word(cur_word)
 		return sentence[:-1] + cur_word
 		
-
-b = Bigram(filename="data/areeb.train", smoothed=LAPLACE)
+"""
+b = Unigram(filename="data/Dataset4/Train.txt", smoothed=LAPLACE)
 #print b.tokens
 #b.good_turing_smooth()
 print b.generate_sentence()
+"""
