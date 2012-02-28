@@ -1,7 +1,7 @@
 '''
 Created on Feb 26, 2012
 New
-@author: Benjamin
+@author: Benjamin Jaeger
 '''
 from ngrams import *
 import string
@@ -131,7 +131,6 @@ def email_prediction (train, validate, test, farmer_correction = False, remove_p
 
 if __name__ == '__main__':
     email_prediction("train.txt", "validation.txt", "test.txt")
-    email_prediction("train.txt", "validation.txt", "test.txt", use_singletons = True)
     
         
     
