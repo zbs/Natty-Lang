@@ -20,7 +20,6 @@ def add_sentence_markers(tokens):
 	# Treat beginning and end of text as a beginning or end of sentence,
 	# respectively
 	if len(tokens) == 0:
-		#print "empty tokens"
 		return tokens + ["."]
 	end_token = tokens[-1:][0]
 	if end_token != "." and end_token != "!" and end_token != "?":
@@ -40,9 +39,9 @@ def create_unks(tokens):
 # and v = number of wordtypes 
 class Unigram():
 	def __init__(self, filename=None, text_string=None, unk=False, smoothed=False):
-		self.smoothed = True
+		self.smoothed = smoothed
 		#Reads in text of specified file
-		self.unk = True
+		self.unk = unk
 		if filename != None:
 			with open(filename) as fp:
 				self.text = fp.read()
@@ -52,7 +51,7 @@ class Unigram():
 				return 
 			else:
 				self.text = text_string
-		self.tokens = add_sentence_markers(tokenize(self.text))
+		self.tokens = tokenize(self.text)
 		if self.unk:
 			self.tokens = create_unks(self.tokens)
 		self.num_words = float(len(self.tokens))
@@ -94,7 +93,15 @@ class Unigram():
 				else:
 					self.unigrams[word] = frequencies[word] / self.num_words
 			return self.unigrams
-			
+
+	def get_probability(self, unigram):
+		probs = self.get_probabilities()
+		if unigram not in probs:
+			if self.unk:
+				return probs["<UNK>"]
+			return 0. 
+		return probs[unigram] 
+	
 	def next_word(self):
 		ran = random.uniform(0,1)
 		uni_freqs = self.get_frequencies()
@@ -111,14 +118,6 @@ class Unigram():
 			sentence += cur_word + " "
 			cur_word = self.next_word()
 		return sentence[:-1] + cur_word
-
-	def get_probability(self, unigram):
-		probs = self.get_probabilities()
-		if unigram not in probs:
-			if self.unk:
-				return probs["<UNK>"]
-			return 0. 
-		return probs[unigram] 
 		
 class Bigram():
 	def __init__(self, filename=None, text_string=None):
@@ -308,9 +307,9 @@ class Bigram():
 		return sentence[:-1] + cur_word
 		
 
-b = Bigram(filename="test_text")
+b = Unigram(filename="data/areeb.train", smoothed=False)
 #print b.tokens
-b.good_turing_smooth()
+#b.good_turing_smooth()
 print b.generate_sentence()
 
 """
