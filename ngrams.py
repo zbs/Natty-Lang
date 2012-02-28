@@ -39,9 +39,10 @@ def create_unks(tokens):
 # Note: for Unigram smoothing, do ( C(w) + 1 ) / (N + V), where N = number of tokens
 # and v = number of wordtypes 
 class Unigram():
-	def __init__(self, filename=None, text_string=None, unk=False):
+	def __init__(self, filename=None, text_string=None, unk=False, smoothed=False):
+		self.smoothed = True
 		#Reads in text of specified file
-		self.unk = unk
+		self.unk = True
 		if filename != None:
 			with open(filename) as fp:
 				self.text = fp.read()
@@ -52,7 +53,7 @@ class Unigram():
 			else:
 				self.text = text_string
 		self.tokens = add_sentence_markers(tokenize(self.text))
-		if unk:
+		if self.unk:
 			self.tokens = create_unks(self.tokens)
 		self.num_words = float(len(self.tokens))
 		
@@ -75,7 +76,10 @@ class Unigram():
 				if word in self.frequencies:
 					self.frequencies[word] += 1.
 				else:
-					self.frequencies[word] = 1.
+					if self.smoothed:
+						self.frequencies[word] = 2.
+					else:
+						self.frequencies[word] = 1.
 			return self.frequencies
 	
 	def get_probabilities(self):
@@ -85,7 +89,10 @@ class Unigram():
 			frequencies = self.get_frequencies()
 			self.unigrams = dict()
 			for word in frequencies:
-				self.unigrams[word] = frequencies[word] / self.num_words
+				if self.smoothed:
+					self.unigrams[word] = frequencies[word] / (self.num_words + len(self.frequencies))
+				else:
+					self.unigrams[word] = frequencies[word] / self.num_words
 			return self.unigrams
 			
 	def next_word(self):
@@ -96,12 +103,7 @@ class Unigram():
 			if ran <= 0:
 				return word
 		return "ERROR"
-	"""
-		num = random.randint(0,len(self.tokens)-1)
-		next = self.tokens[num]
-		return next
-	"""
-		
+
 	def generate_sentence(self):
 		cur_word = self.next_word()
 		sentence = ""
@@ -109,12 +111,7 @@ class Unigram():
 			sentence += cur_word + " "
 			cur_word = self.next_word()
 		return sentence[:-1] + cur_word
-	"""
-		sentence = ""
-		for i in range(sentence_length):
-			sentence += self.next_word(self)
-	"""
-	
+
 	def get_probability(self, unigram):
 		probs = self.get_probabilities()
 		if unigram not in probs:
@@ -255,10 +252,18 @@ class Bigram():
 	def get_good_turing_probability(self, bigram):
 		(adjusted_unigram_counts, adjusted_bigram_counts) = self.good_turing_smooth()
 		(uni_freqs, bi_freqs) = self.get_frequencies()
-		bi_rank = bi_freqs[bigram]
 		(first, second) = bigram
-		uni_rank = uni_freqs[first]
-		return bi_rank / uni_rank 
+		if bigram not in bi_freqs:
+			# Use special equation for 0 frequency class bigrams
+			pass
+			return
+		
+		bigram_count = adjusted_bigram_counts[bigram]
+		unigram_count = adjusted_unigram_counts[(first,)]
+		
+		# Insert equation to generate probability based on these counts
+		pass
+		return
 		
 		
 	def get_probability(self, bigram):
@@ -277,11 +282,14 @@ class Bigram():
 			return 0.
 		elif bigram not in bi_freqs and self.smoothed == LAPLACE:
 			return 1./uni_freqs[(first,)]
+		# MAKE SURE THIS IS CORRECT
+		"""
 		elif self.smoothed == GOOD_TURING:
 			return self.get_good_turing_probability(bigram)
 		else:
 			return probs[bigram]
-	
+		"""
+		
 	def next_word(self, prev_word):
 		ran = random.uniform(0,1)
 		(uni_freqs, bi_freqs) = self.get_frequencies()
@@ -304,6 +312,7 @@ b = Bigram(filename="test_text")
 #print b.tokens
 b.good_turing_smooth()
 print b.generate_sentence()
+
 """
 summ = 0.
 for (word,) in b.uni_frequencies:
