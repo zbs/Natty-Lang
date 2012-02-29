@@ -1,1 +1,28 @@
-This is the worst readme ever...zach, you poop face
+README.txt (this will be a separate file later)
+This project requires Python 2.6 and the nltk package available at http://www.nltk.org/
+
+ngram.py
+Unigram and Bigram objects are constructed by either setting the filename flag or the text_string
+flag to the desired data. The unk flags turns on unknown word handling.
+For Unigrams, smoothed can be set to either True or False.
+For Bigrams, smoothed can be set to NONE, LAPLACE, or GOOD_TURING.
+
+The functions on Unigram.get_frequencies() and Bigram.get_frequencies() returns all the ngram frequencies.
+get_probabilities() returns all the probabilities.
+Unigram.get_probability(word) and Bigram.get_probability(first, second)
+return individual ngram probabilities and accounts for unknown words.
+generate_sentence() will print out a randomly generated sentence.
+
+
+authorPredictor.py
+This file runs the author predictor algorithm.
+At the very bottom of the file in main, set up the call to email_prediction with the desired option and file paths.
+The options are as follows
+- singletons: uses only singleton unigrams to compute perplexity.
+- remove_punctuation: removes punctuation marks, except for . and ! and ? from emails.
+- farmer_correction: Makes algorithm more sensitive towards prediction “farmer-d”
+- kaggle: includes the test data for submission to kaggle. Output is written to submission.csv.
+The perplexity functions are also in this file.
+perplexity2() takes in a test and model unigram or bigram objects.
+test_perplexity() runs perplexity2() on test and train files
+(their paths are at the top of the function) using different smoothing techniques.
