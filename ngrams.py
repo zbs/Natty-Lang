@@ -130,7 +130,6 @@ class Bigram():
 		self.smoothed = smoothed
 		self.unk = unk
 		
-		###self.tokens = create_unks(add_sentence_markers(tokenize(self.text)))
 		self.tokens = add_sentence_markers(tokenize(self.text))
 		if self.unk:
 			self.tokens = create_unks(self.tokens)
@@ -205,7 +204,6 @@ class Bigram():
 			
 	
 	def get_good_turing_counts(self,freqs):
-		self.smoothed = GOOD_TURING
 		freq_dict = dict()
 		max_freq = 0
 		#initialize freq_vector with known bigrams
@@ -224,19 +222,42 @@ class Bigram():
 		for f in range(1,int(max_freq)):
 			if f not in freq_dict:
 				freq_dict[f] = self.guess_freq(freq_dict,f,max_freq) 
+		# Potential problem: if we assume an erroneous value that will be factored in 
+		# to the count of the most frequent word, then it could plausibly produce a lot of 
+		# error.
 		freq_dict[max_freq+1] = freq_dict[max_freq]
 		adjusted_counts = dict()
 		adjusted_counts[0] = freq_dict[1]
+		# Shouldn't this be len(freq_dict) - 1, since when you get to 
+		# f = max + 1, you won't have a valid value for freq_dict[max+1+1]?
 		for f in range(1,len(freq_dict)):
 			adjusted_counts[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])
 		return adjusted_counts
 		
 	def good_turing_smooth(self):
 		if self.adjusted_bigram_counts == None:
-			(uni_freqs, bi_freqs) = self.get_frequencies()
+			(_, bi_freqs) = self.get_frequencies()
 			# Adjusted counts using Good-Turing discounting
 			self.adjusted_bigram_counts = self.get_good_turing_counts(bi_freqs)
 		return self.adjusted_bigram_counts
+	
+	"""
+		This essentially calculates the sum across the row of bigrams that begin 
+		with prev_word
+	"""	
+	def get_gt_bigram_count(self,prev_word):
+		if prev_word not in self.adjusted_denominator:
+			(uni_freqs, bi_freqs) = self.get_frequencies()
+			adjusted_bigram_counts = self.good_turing_smooth() 
+			
+			self.adjusted_denominator[prev_word] = 0.
+			for (word,) in uni_freqs:
+				if (prev_word, word) not in bi_freqs:
+					self.adjusted_denominator[prev_word] += adjusted_bigram_counts[0]
+				else:
+					self.adjusted_denominator[prev_word] += \
+						adjusted_bigram_counts[bi_freqs[(prev_word, word)]]	
+		return self.adjusted_denominator[prev_word]	
 	
 	def get_good_turing_probability(self, bigram):
 		adjusted_bigram_counts = self.good_turing_smooth()
@@ -281,24 +302,6 @@ class Bigram():
 				return 0.
 			else:
 				return (bi_freqs[(first,second)] / uni_freqs[(first,)])
-	
-	"""
-		This essentially calculates the sum across the row of bigrams that begin 
-		with prev_word
-	"""	
-	def get_gt_bigram_count(self,prev_word):
-		if prev_word not in self.adjusted_denominator:
-			(uni_freqs, bi_freqs) = self.get_frequencies()
-			adjusted_bigram_counts = self.good_turing_smooth()
-			
-			self.adjusted_denominator[prev_word] = 0.
-			for (word,) in uni_freqs:
-				if (prev_word, word) not in bi_freqs:
-					self.adjusted_denominator[prev_word] += adjusted_bigram_counts[0]
-				else:
-					self.adjusted_denominator[prev_word] += \
-						adjusted_bigram_counts[bi_freqs[(prev_word, word)]]	
-		return self.adjusted_denominator[prev_word]	
 				
 	def next_word(self, prev_word):
 		ran = random.uniform(0,1)
