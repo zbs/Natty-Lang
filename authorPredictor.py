@@ -6,7 +6,22 @@ New
 from ngrams import *
 import string
 
+#this is the modified perplexity function for authorship attribution
 def perplexity(text, model):
+    text_freq = text.get_frequencies()
+    def log_prob(acc, bigram):
+        prob = model.get_probability(bigram)
+        if (prob != 0):
+            return acc + text_freq[bigram] * math.log( prob )
+        #-14 found from cross validation - this case only occurs for email author
+        return acc + (text_freq[bigram] * -14)
+    product =  reduce (log_prob, text_freq, 0.0)
+    if product == 0:
+        return 0
+    return (math.e ) ** (- product / text.get_num_tokens() )
+
+#normal perplexity
+def perplexity2(text, model):
     text_freq = None
     if isinstance(text, Bigram):
         _, text_freq = text.get_frequencies()
@@ -14,17 +29,15 @@ def perplexity(text, model):
         text_freq = text.get_frequencies()
     def log_prob(acc, bigram):
         prob = model.get_probability(bigram)
-        if (prob != 0):
-            return acc + text_freq[bigram] * math.log( prob )
-        #-14 found from cross validation - this case only occurs for email author
-        # prediction and not if smooth bigram probabilities are used.
-        return acc + (text_freq[bigram] * -14)
+        if (prob == 0):
+            print "Error: zero probability"
+        return acc + text_freq[bigram] * math.log( prob )
     product =  reduce (log_prob, text_freq, 0.0)
     if product == 0:
         return 0
-    return (math.e ) ** (- product / text.get_num_tokens() )
+    return (math.e ) ** (- product / text.get_num_tokens() )  
 
-        
+      
 #See textbook page 122
 def email_prediction (train, validate, test, farmer_correction = False, remove_punctuation = False, use_singletons = False, kaggle= False):
         train_data = []
@@ -128,27 +141,28 @@ def email_prediction (train, validate, test, farmer_correction = False, remove_p
                 submission.write(a + "\n")
         print "done"
 
+#computes the perplexities for two datasets using different smoothing techniques.
 def test_perplexity():
     train1, train2, test1, test2 = "wsj.train", "Train4.txt", "wsj.test", "Test4.txt"
     print "Dataset 1: Unigram with laplace smoothing and unking."
-    print perplexity( Unigram( filename =test1, unk = True, smoothed = True), Unigram( filename =train1, unk = True, smoothed = True))
+    print perplexity2( Unigram( filename =test1, unk = True, smoothed = True), Unigram( filename =train1, unk = True, smoothed = True))
     print "Dataset 2: Unigram with laplace smoothing and unking."
-    print perplexity( Unigram( filename =test2, unk = True, smoothed = True), Unigram( filename =train2, unk = True, smoothed = True))
+    print perplexity2( Unigram( filename =test2, unk = True, smoothed = True), Unigram( filename =train2, unk = True, smoothed = True))
     
     print "Dataset 1: Unigram without smoothing and unking."
-    print perplexity( Unigram( filename =test1, unk = True, smoothed = False), Unigram( filename =train1, unk = True, smoothed = False))
+    print perplexity2( Unigram( filename =test1, unk = True, smoothed = False), Unigram( filename =train1, unk = True, smoothed = False))
     print "Dataset 2: Unigram without smoothing and unking."
-    print perplexity( Unigram( filename =test2, unk = True, smoothed = False), Unigram( filename =train2, unk = True, smoothed = False))
+    print perplexity2( Unigram( filename =test2, unk = True, smoothed = False), Unigram( filename =train2, unk = True, smoothed = False))
     
     print "Dataset 1: Bigram with laplace smoothing and unking."
-    print perplexity( Bigram( filename =test1, unk = True, smoothed = LAPLACE), Bigram( filename =train1, unk = True, smoothed = LAPLACE))
+    print perplexity2( Bigram( filename =test1, unk = True, smoothed = LAPLACE), Bigram( filename =train1, unk = True, smoothed = LAPLACE))
     print "Dataset 2: Bigram with laplace smoothing and unking."
-    print perplexity( Bigram( filename =test2, unk = True, smoothed = LAPLACE), Bigram( filename =train2, unk = True, smoothed = LAPLACE))
+    print perplexity2( Bigram( filename =test2, unk = True, smoothed = LAPLACE), Bigram( filename =train2, unk = True, smoothed = LAPLACE))
     
     print "Dataset 1: Bigram with good turing smoothing and unking."
-    print perplexity( Bigram( filename =test1, unk = True, smoothed = GOOD_TURING), Bigram( filename =train1, unk = True, smoothed = GOOD_TURING))
+    print perplexity2( Bigram( filename =test1, unk = True, smoothed = GOOD_TURING), Bigram( filename =train1, unk = True, smoothed = GOOD_TURING))
     print "Dataset 2: Bigram with good turing smoothing and unking."
-    print perplexity( Bigram( filename =test2, unk = True, smoothed = GOOD_TURING), Bigram( filename =train2, unk = True, smoothed = GOOD_TURING))
+    print perplexity2( Bigram( filename =test2, unk = True, smoothed = GOOD_TURING), Bigram( filename =train2, unk = True, smoothed = GOOD_TURING))
 
 if __name__ == '__main__':
     email_prediction("train.txt", "validation.txt", "test.txt", farmer_correction = True, remove_punctuation = True)
