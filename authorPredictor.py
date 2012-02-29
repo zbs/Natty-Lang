@@ -10,7 +10,6 @@ def perplexity(text, model):
     text_freq = None
     if isinstance(text, Bigram):
         _, text_freq = text.get_frequencies()
-        model.smooth()
     else:
         text_freq = text.get_frequencies()
     def log_prob(acc, bigram):
@@ -129,8 +128,31 @@ def email_prediction (train, validate, test, farmer_correction = False, remove_p
                 submission.write(a + "\n")
         print "done"
 
+def test_perplexity():
+    train1, train2, test1, test2 = "wsj.train", "Train4.txt", "wsj.test", "Test4.txt"
+    print "Dataset 1: Unigram with laplace smoothing and unking."
+    print perplexity( Unigram( filename =test1, unk = True, smoothed = True), Unigram( filename =train1, unk = True, smoothed = True))
+    print "Dataset 2: Unigram with laplace smoothing and unking."
+    print perplexity( Unigram( filename =test2, unk = True, smoothed = True), Unigram( filename =train2, unk = True, smoothed = True))
+    
+    print "Dataset 1: Unigram without smoothing and unking."
+    print perplexity( Unigram( filename =test1, unk = True, smoothed = False), Unigram( filename =train1, unk = True, smoothed = False))
+    print "Dataset 2: Unigram without smoothing and unking."
+    print perplexity( Unigram( filename =test2, unk = True, smoothed = False), Unigram( filename =train2, unk = True, smoothed = False))
+    
+    print "Dataset 1: Bigram with laplace smoothing and unking."
+    print perplexity( Bigram( filename =test1, unk = True, smoothed = LAPLACE), Bigram( filename =train1, unk = True, smoothed = LAPLACE))
+    print "Dataset 2: Bigram with laplace smoothing and unking."
+    print perplexity( Bigram( filename =test2, unk = True, smoothed = LAPLACE), Bigram( filename =train2, unk = True, smoothed = LAPLACE))
+    
+    print "Dataset 1: Bigram with good turing smoothing and unking."
+    print perplexity( Bigram( filename =test1, unk = True, smoothed = GOOD_TURING), Bigram( filename =train1, unk = True, smoothed = GOOD_TURING))
+    print "Dataset 2: Bigram with good turing smoothing and unking."
+    print perplexity( Bigram( filename =test2, unk = True, smoothed = GOOD_TURING), Bigram( filename =train2, unk = True, smoothed = GOOD_TURING))
+
 if __name__ == '__main__':
     email_prediction("train.txt", "validation.txt", "test.txt", farmer_correction = True, remove_punctuation = True)
+    test_perplexity()
     
         
     
