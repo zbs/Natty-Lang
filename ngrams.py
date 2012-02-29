@@ -127,7 +127,7 @@ class Bigram():
 			else:
 				self.text = text_string
 				
-		self.smoothed = NONE
+		self.smoothed = smoothed
 		self.unk = unk
 		
 		###self.tokens = create_unks(add_sentence_markers(tokenize(self.text)))
@@ -272,7 +272,8 @@ class Bigram():
 				
 		# Deal with Good-Turing smoothing 
 		if (self.smoothed == GOOD_TURING):
-			return self.get_good_turing_probability(bigram)
+			prob = self.get_good_turing_probability(bigram)
+			return prob
 		
 		# No smoothing
 		if (self.smoothed == NONE):
@@ -297,7 +298,7 @@ class Bigram():
 				else:
 					self.adjusted_denominator[prev_word] += \
 						adjusted_bigram_counts[bi_freqs[(prev_word, word)]]	
-		return self.adjust_denominator[prev_word]	
+		return self.adjusted_denominator[prev_word]	
 				
 	def next_word(self, prev_word):
 		ran = random.uniform(0,1)
@@ -316,9 +317,8 @@ class Bigram():
 			cur_word = self.next_word(cur_word)
 		return sentence[:-1] + cur_word
 		
-"""
-b = Unigram(filename="data/Dataset4/Train.txt", smoothed=LAPLACE)
+
+b = Bigram(filename="data/Dataset4/Train.txt", smoothed=GOOD_TURING)
 #print b.tokens
 #b.good_turing_smooth()
 print b.generate_sentence()
-"""
