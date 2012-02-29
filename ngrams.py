@@ -204,6 +204,7 @@ class Bigram():
 			
 	
 	def get_good_turing_counts(self,freqs):
+		self.smoothed = GOOD_TURING
 		freq_dict = dict()
 		max_freq = 0
 		#initialize freq_vector with known bigrams
@@ -222,15 +223,12 @@ class Bigram():
 		for f in range(1,int(max_freq)):
 			if f not in freq_dict:
 				freq_dict[f] = self.guess_freq(freq_dict,f,max_freq) 
-		# Potential problem: if we assume an erroneous value that will be factored in 
-		# to the count of the most frequent word, then it could plausibly produce a lot of 
-		# error.
-		freq_dict[max_freq+1] = freq_dict[max_freq]
+		freq_dict[max_freq+1] = \
+			2.*freq_dict[max_freq] - freq_dict[max_freq-1]
+		
 		adjusted_counts = dict()
-		adjusted_counts[0] = freq_dict[1]
-		# Shouldn't this be len(freq_dict) - 1, since when you get to 
-		# f = max + 1, you won't have a valid value for freq_dict[max+1+1]?
-		for f in range(1,len(freq_dict)):
+		adjusted_counts[0] = freq_dict[1]/N
+		for f in range(1,int(max_freq+1)):
 			adjusted_counts[f] = (f+1.)*(freq_dict[f+1]/freq_dict[f])
 		return adjusted_counts
 		
@@ -321,7 +319,7 @@ class Bigram():
 		return sentence[:-1] + cur_word
 		
 
-b = Bigram(filename="data/Dataset4/Train.txt", smoothed=GOOD_TURING)
+#b = Bigram(filename="data/Dataset4/Train.txt", smoothed=GOOD_TURING)
 #print b.tokens
 #b.good_turing_smooth()
-print b.generate_sentence()
+#print b.generate_sentence()
